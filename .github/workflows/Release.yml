@@ -37,7 +37,6 @@ jobs:
         with:
           node-version: lts/*
           cache: 'npm'
-          cache-dependency-path: 'fe/package-lock.json'
 
       - name: install frontend dependencies
         working-directory: ./fe
