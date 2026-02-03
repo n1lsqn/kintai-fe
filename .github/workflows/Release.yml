@@ -39,7 +39,6 @@ jobs:
           cache: 'npm'
 
       - name: install frontend dependencies
-        working-directory: ./fe
         run: npm install
 
       - name: setup rust
