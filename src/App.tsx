@@ -64,19 +64,19 @@ function App() {
 
   const getStatusLabel = (s: UserStatus) => {
     switch (s) {
-      case 'unregistered': return '未開始';
-      case 'working': return '開始中';
-      case 'on_break': return '休憩中';
-      default: return '不明';
+      case 'unregistered': return 'オフライン';
+      case 'working': return '集中タイム';
+      case 'on_break': return 'リラックス中';
+      default: return '???';
     }
   };
 
   const getLogTypeLabel = (t: AttendanceRecordType) => {
     switch (t) {
-      case 'work_start': return '開始';
-      case 'work_end': return '終了';
-      case 'break_start': return '休憩開始';
-      case 'break_end': return '休憩終了';
+      case 'work_start': return 'ログイン';
+      case 'work_end': return 'ログアウト';
+      case 'break_start': return 'AFK';
+      case 'break_end': return '復帰';
       default: return t;
     }
   };
