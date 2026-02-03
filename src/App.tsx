@@ -66,7 +66,7 @@ function App() {
     switch (s) {
       case 'unregistered': return 'オフライン';
       case 'working': return '集中タイム';
-      case 'on_break': return 'リラックス中';
+      case 'on_break': return 'リラックス';
       default: return '???';
     }
   };
