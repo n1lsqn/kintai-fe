@@ -13,7 +13,7 @@ interface StatusResponse {
   attendanceLog: LogEntry[];
 }
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:9393';
+const API_BASE = "https://api.n1l.dev";
 
 function App() {
   const [status, setStatus] = useState<UserStatus>('unregistered');
@@ -64,8 +64,8 @@ function App() {
 
   const getStatusLabel = (s: UserStatus) => {
     switch (s) {
-      case 'unregistered': return '未出勤';
-      case 'working': return '勤務中';
+      case 'unregistered': return '未開始';
+      case 'working': return '開始中';
       case 'on_break': return '休憩中';
       default: return '不明';
     }
@@ -73,8 +73,8 @@ function App() {
 
   const getLogTypeLabel = (t: AttendanceRecordType) => {
     switch (t) {
-      case 'work_start': return '出勤';
-      case 'work_end': return '退勤';
+      case 'work_start': return '開始';
+      case 'work_end': return '終了';
       case 'break_start': return '休憩開始';
       case 'break_end': return '休憩終了';
       default: return t;
