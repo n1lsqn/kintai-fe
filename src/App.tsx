@@ -22,7 +22,7 @@ interface StatusResponse {
   discordUser?: DiscordUser;
 }
 
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:9393";
+const API_BASE = "https://api.n1l.dev";
 const RESET_HOUR = 5;
 
 // Helper to calculate work time
