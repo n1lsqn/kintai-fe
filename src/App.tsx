@@ -89,6 +89,7 @@ function App() {
   const [userId, setUserId] = useState<string | null>(localStorage.getItem('kintai_user_id'));
   const [loading, setLoading] = useState(true);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [loginState, setLoginState] = useState<string | null>(null);
   const [todayWorkTime, setTodayWorkTime] = useState(0);
 
   // ... (rest of the code)
@@ -162,18 +163,18 @@ function App() {
   // Polling effect when logging in
   useEffect(() => {
     let intervalId: ReturnType<typeof setInterval>;
-    if (isLoggingIn) {
+    if (isLoggingIn && loginState) {
       intervalId = setInterval(async () => {
-        // ログイン中は "/auth/me/latest" をポーリングして、自分がログインできたか確認する
+        // ログイン中は自分専用の "/auth/me/:state" をポーリングする
         try {
-            const res = await fetch(`${API_BASE}/auth/me/latest`);
+            const res = await fetch(`${API_BASE}/auth/me/${loginState}`);
             if (res.ok) {
                 const user = await res.json();
-                // 簡易チェック
                 if (user && user.id) {
                     setUserId(user.id);
                     localStorage.setItem('kintai_user_id', user.id);
                     setIsLoggingIn(false);
+                    setLoginState(null);
                 }
             }
         } catch (e) {
@@ -182,15 +183,17 @@ function App() {
       }, 2000);
     }
     return () => clearInterval(intervalId);
-  }, [isLoggingIn]);
+  }, [isLoggingIn, loginState]);
 
   const handleLogin = async () => {
     try {
-        const res = await fetch(`${API_BASE}/auth/discord`);
+        const state = crypto.randomUUID();
+        const res = await fetch(`${API_BASE}/auth/discord?state=${state}`);
         if (!res.ok) throw new Error('Failed to start login');
         const data = await res.json();
         if (data.url) {
             await open(data.url);
+            setLoginState(state);
             setIsLoggingIn(true);
         }
     } catch (e) {
