@@ -23,6 +23,64 @@ interface StatusResponse {
 }
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:9393";
+const RESET_HOUR = 5;
+
+// Helper to calculate work time
+const calculateTodayWorkTime = (logs: LogEntry[], currentStatus: UserStatus): number => {
+  const now = new Date();
+  
+  // Calculate logical start of today
+  const startOfToday = new Date(now);
+  if (now.getHours() < RESET_HOUR) {
+    startOfToday.setDate(startOfToday.getDate() - 1);
+  }
+  startOfToday.setHours(RESET_HOUR, 0, 0, 0);
+  const startOfTodayTime = startOfToday.getTime();
+
+  let totalTime = 0;
+  let lastStartTime: number | null = null;
+
+  // Process ALL logs to correctly track state, but only add time if it falls within today
+  for (const log of logs) {
+    const time = new Date(log.timestamp).getTime();
+    
+    if (log.type === 'work_start' || log.type === 'break_end') {
+        lastStartTime = time;
+    } else if (log.type === 'work_end' || log.type === 'break_start') {
+      if (lastStartTime !== null) {
+        // Calculate duration, clipping to start of today
+        const effectiveStart = Math.max(lastStartTime, startOfTodayTime);
+        const effectiveEnd = time;
+
+        if (effectiveEnd > effectiveStart) {
+            totalTime += effectiveEnd - effectiveStart;
+        }
+        lastStartTime = null;
+      }
+    }
+  }
+
+  // If currently working, add time since last start (or start of today)
+  if ((currentStatus === 'working') && lastStartTime !== null) {
+    const effectiveStart = Math.max(lastStartTime, startOfTodayTime);
+    const effectiveEnd = now.getTime();
+    
+    if (effectiveEnd > effectiveStart) {
+        totalTime += effectiveEnd - effectiveStart;
+    }
+  }
+
+  return totalTime;
+};
+
+// Format milliseconds to HH:MM:SS
+const formatDuration = (ms: number) => {
+  const seconds = Math.floor((ms / 1000) % 60);
+  const minutes = Math.floor((ms / (1000 * 60)) % 60);
+  const hours = Math.floor(ms / (1000 * 60 * 60));
+  
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+};
 
 function App() {
   const [status, setStatus] = useState<UserStatus>('unregistered');
@@ -31,6 +89,9 @@ function App() {
   const [userId, setUserId] = useState<string | null>(localStorage.getItem('kintai_user_id'));
   const [loading, setLoading] = useState(true);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [todayWorkTime, setTodayWorkTime] = useState(0);
+
+  // ... (rest of the code)
 
   // Helper to make authenticated requests
   const apiRequest = useCallback(async (endpoint: string, options: RequestInit = {}) => {
@@ -85,6 +146,18 @@ function App() {
   useEffect(() => {
     fetchStatus();
   }, [fetchStatus]); 
+
+  // Timer for updating work time
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (logs.length > 0) {
+        setTodayWorkTime(calculateTodayWorkTime(logs, status));
+      } else {
+        setTodayWorkTime(0);
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [logs, status]);
 
   // Polling effect when logging in
   useEffect(() => {
@@ -222,10 +295,15 @@ function App() {
           </button>
         </div>
         <h1 className="text-4xl font-bold mb-4">My Flow</h1>
-        <div className="inline-block px-4 py-2 rounded-full bg-gray-800 border border-gray-700">
-          ステータス: <span className={`font-bold ${status === 'working' ? 'text-green-400' : status === 'on_break' ? 'text-yellow-400' : 'text-gray-400'}`}>
-            {getStatusLabel(status)}
-          </span>
+        <div className="flex flex-col items-center gap-2">
+          <div className="text-6xl font-mono font-bold text-indigo-400 tabular-nums my-4 drop-shadow-lg">
+            {formatDuration(todayWorkTime)}
+          </div>
+          <div className="inline-block px-4 py-2 rounded-full bg-gray-800 border border-gray-700">
+            ステータス: <span className={`font-bold ${status === 'working' ? 'text-green-400' : status === 'on_break' ? 'text-yellow-400' : 'text-gray-400'}`}>
+              {getStatusLabel(status)}
+            </span>
+          </div>
         </div>
       </header>
 
