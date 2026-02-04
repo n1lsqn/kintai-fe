@@ -23,13 +23,15 @@ function App() {
   const fetchStatus = async () => {
     try {
       const res = await fetch(`${API_BASE}/status`);
+      if (!res.ok) {
+        throw new Error('Network response was not ok');
+      }
       const data: StatusResponse = await res.json();
       setStatus(data.currentStatus);
       setLogs(data.attendanceLog);
+      setLoading(false);
     } catch (err) {
       console.error('Failed to fetch status:', err);
-    } finally {
-      setLoading(false);
     }
   };
 
