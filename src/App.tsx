@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { open } from '@tauri-apps/plugin-shell';
 import { MdLogout } from 'react-icons/md';
 
@@ -33,7 +33,7 @@ function App() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   // Helper to make authenticated requests
-  const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
+  const apiRequest = useCallback(async (endpoint: string, options: RequestInit = {}) => {
       const headers = new Headers(options.headers);
       if (userId) {
           headers.set('x-user-id', userId);
@@ -43,9 +43,17 @@ function App() {
           headers
       });
       return res;
-  };
+  }, [userId]);
 
-  const fetchStatus = async () => {
+  const handleLogout = useCallback(() => {
+      setUserId(null);
+      setDiscordUser(undefined);
+      localStorage.removeItem('kintai_user_id');
+      setStatus('unregistered');
+      setLogs([]);
+  }, []);
+
+  const fetchStatus = useCallback(async () => {
     // ユーザーIDがない場合はステータスを取得できない（未ログイン）
     if (!userId) {
         setLoading(false);
@@ -72,11 +80,11 @@ function App() {
       console.error('Failed to fetch status:', err);
       return null;
     }
-  };
+  }, [userId, apiRequest, handleLogout]);
 
   useEffect(() => {
     fetchStatus();
-  }, [userId]); // userIdが変わったら再取得
+  }, [fetchStatus]); 
 
   // Polling effect when logging in
   useEffect(() => {
@@ -84,13 +92,11 @@ function App() {
     if (isLoggingIn) {
       intervalId = setInterval(async () => {
         // ログイン中は "/auth/me/latest" をポーリングして、自分がログインできたか確認する
-        // ※本来はここもセキュアにすべきだが、簡易実装として
         try {
             const res = await fetch(`${API_BASE}/auth/me/latest`);
             if (res.ok) {
                 const user = await res.json();
-                // 簡易チェック: 最新のユーザーが自分（今ログインした人）だと仮定
-                // 実際の運用では認証トークンを使うべき
+                // 簡易チェック
                 if (user && user.id) {
                     setUserId(user.id);
                     localStorage.setItem('kintai_user_id', user.id);
@@ -118,14 +124,6 @@ function App() {
         console.error(e);
         alert('ログイン開始に失敗しました');
     }
-  };
-
-  const handleLogout = () => {
-      setUserId(null);
-      setDiscordUser(undefined);
-      localStorage.removeItem('kintai_user_id');
-      setStatus('unregistered');
-      setLogs([]);
   };
 
   const handleStamp = async () => {
@@ -157,18 +155,28 @@ function App() {
     switch (s) {
       case 'unregistered': return 'オフライン';
       case 'working': return '集中タイム';
-      case 'on_break': return 'リラックス';
+      case 'on_break': return 'チルモード';
       default: return '???';
     }
   };
 
   const getLogTypeLabel = (t: AttendanceRecordType) => {
     switch (t) {
-      case 'work_start': return 'ログイン';
-      case 'work_end': return 'ログアウト';
-      case 'break_start': return 'AFK';
-      case 'break_end': return '復帰';
+      case 'work_start': return '集中タイム';
+      case 'work_end': return 'オフライン';
+      case 'break_start': return 'チルモード';
+      case 'break_end': return '集中タイム';
       default: return t;
+    }
+  };
+
+  const getLogTypeColor = (t: AttendanceRecordType) => {
+    switch (t) {
+      case 'work_start': return 'bg-emerald-900/40 text-emerald-300';
+      case 'work_end': return 'bg-rose-900/40 text-rose-300';
+      case 'break_start': return 'bg-amber-900/40 text-amber-300';
+      case 'break_end': return 'bg-sky-900/40 text-sky-300';
+      default: return 'bg-gray-900/40 text-gray-300';
     }
   };
 
@@ -213,9 +221,9 @@ function App() {
               <MdLogout className='w-8 h-8'/>
           </button>
         </div>
-        <h1 className="text-4xl font-bold mb-4">作業管理</h1>
+        <h1 className="text-4xl font-bold mb-4">My Flow</h1>
         <div className="inline-block px-4 py-2 rounded-full bg-gray-800 border border-gray-700">
-          現在の状態: <span className={`font-bold ${status === 'working' ? 'text-green-400' : status === 'on_break' ? 'text-yellow-400' : 'text-gray-400'}`}>
+          ステータス: <span className={`font-bold ${status === 'working' ? 'text-green-400' : status === 'on_break' ? 'text-yellow-400' : 'text-gray-400'}`}>
             {getStatusLabel(status)}
           </span>
         </div>
@@ -227,20 +235,20 @@ function App() {
             onClick={handleStamp}
             className="h-24 text-xl font-bold rounded-xl bg-indigo-600 hover:bg-indigo-500 transition-colors shadow-lg active:scale-95"
           >
-            {status === 'unregistered' ? '開始' : status === 'working' ? '休憩開始' : '休憩終了'}
+            {status === 'unregistered' ? '▶ はじめる' : status === 'working' ? '☕ ひと休み' : '▶ 戻る'}
           </button>
           <button
             onClick={handleClockOut}
             disabled={status === 'unregistered'}
             className="h-24 text-xl font-bold rounded-xl bg-rose-700 hover:bg-rose-600 transition-colors shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            終了
+            🛑 おわる
           </button>
         </div>
 
         <section className="bg-gray-800 rounded-xl overflow-hidden shadow-xl">
           <div className="px-6 py-4 border-b border-gray-700 font-bold bg-gray-750">
-            最近のログ
+            タイムライン
           </div>
           <div className="max-h-96 overflow-y-auto">
             <table className="w-full text-left">
@@ -257,9 +265,7 @@ function App() {
                       {new Date(log.timestamp).toLocaleString('ja-JP')}
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded text-xs font-bold ${
-                        log.type.includes('work') ? 'bg-indigo-900/40 text-indigo-300' : 'bg-yellow-900/40 text-yellow-300'
-                      }`}>
+                      <span className={`px-2 py-1 rounded text-xs font-bold ${getLogTypeColor(log.type)}`}>
                         {getLogTypeLabel(log.type)}
                       </span>
                     </td>
@@ -268,7 +274,7 @@ function App() {
                 {logs.length === 0 && (
                   <tr>
                     <td colSpan={2} className="px-6 py-10 text-center text-gray-500">
-                      ログがありません
+                      記録はありません
                     </td>
                   </tr>
                 )}
