@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { open } from '@tauri-apps/plugin-shell';
 
 type UserStatus = 'unregistered' | 'working' | 'on_break';
 type AttendanceRecordType = 'work_start' | 'work_end' | 'break_start' | 'break_end';
@@ -8,9 +9,16 @@ interface LogEntry {
   timestamp: string;
 }
 
+interface DiscordUser {
+  id: string;
+  username: string;
+  avatar: string | null;
+}
+
 interface StatusResponse {
   currentStatus: UserStatus;
   attendanceLog: LogEntry[];
+  discordUser?: DiscordUser;
 }
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:9393";
@@ -18,7 +26,9 @@ const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:9393";
 function App() {
   const [status, setStatus] = useState<UserStatus>('unregistered');
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [discordUser, setDiscordUser] = useState<DiscordUser | undefined>(undefined);
   const [loading, setLoading] = useState(true);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const fetchStatus = async () => {
     try {
@@ -29,15 +39,47 @@ function App() {
       const data: StatusResponse = await res.json();
       setStatus(data.currentStatus);
       setLogs(data.attendanceLog);
+      setDiscordUser(data.discordUser);
       setLoading(false);
+      return data; // Return data for polling check
     } catch (err) {
       console.error('Failed to fetch status:', err);
+      return null;
     }
   };
 
   useEffect(() => {
     fetchStatus();
   }, []);
+
+  // Polling effect when logging in
+  useEffect(() => {
+    let intervalId: ReturnType<typeof setInterval>;
+    if (isLoggingIn) {
+      intervalId = setInterval(async () => {
+        const data = await fetchStatus();
+        if (data && data.discordUser) {
+          setIsLoggingIn(false);
+        }
+      }, 2000);
+    }
+    return () => clearInterval(intervalId);
+  }, [isLoggingIn]);
+
+  const handleLogin = async () => {
+    try {
+        const res = await fetch(`${API_BASE}/auth/discord`);
+        if (!res.ok) throw new Error('Failed to start login');
+        const data = await res.json();
+        if (data.url) {
+            await open(data.url);
+            setIsLoggingIn(true);
+        }
+    } catch (e) {
+        console.error(e);
+        alert('ログイン開始に失敗しました');
+    }
+  };
 
   const handleStamp = async () => {
     try {
@@ -84,12 +126,42 @@ function App() {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen text-white">読み込み中...</div>;
+    return <div className="flex items-center justify-center h-screen bg-gray-900 text-white">読み込み中...</div>;
   }
 
+  // Not Logged In View
+  if (!discordUser) {
+      return (
+        <div className="flex flex-col items-center justify-center h-screen bg-gray-900 text-gray-100 p-8">
+            <h1 className="text-4xl font-bold mb-8">Kintai Login</h1>
+            <p className="mb-8 text-gray-400">作業を開始するにはDiscordでログインしてください</p>
+            <button 
+                onClick={handleLogin}
+                className="px-8 py-4 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-bold text-xl shadow-lg transition-all active:scale-95 flex items-center gap-3"
+            >
+                {isLoggingIn ? '確認中...' : 'Login with Discord'}
+            </button>
+            {isLoggingIn && (
+                <p className="mt-4 text-sm text-gray-500 animate-pulse">ブラウザで認証を完了してください...</p>
+            )}
+        </div>
+      );
+  }
+
+  // Logged In View
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-8 w-full max-w-2xl mx-auto">
-      <header className="mb-10 text-center">
+      <header className="mb-10 text-center relative">
+        <div className="absolute top-0 right-0 flex items-center gap-2">
+            {discordUser.avatar && (
+                <img 
+                    src={`https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`} 
+                    alt="avatar" 
+                    className="w-8 h-8 rounded-full border border-gray-600"
+                />
+            )}
+            <span className="text-xs text-gray-400">{discordUser.username}</span>
+        </div>
         <h1 className="text-4xl font-bold mb-4">作業管理</h1>
         <div className="inline-block px-4 py-2 rounded-full bg-gray-800 border border-gray-700">
           現在の状態: <span className={`font-bold ${status === 'working' ? 'text-green-400' : status === 'on_break' ? 'text-yellow-400' : 'text-gray-400'}`}>
