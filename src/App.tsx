@@ -13,7 +13,7 @@ interface StatusResponse {
   attendanceLog: LogEntry[];
 }
 
-const API_BASE = "https://api.n1l.dev";
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:9393";
 
 function App() {
   const [status, setStatus] = useState<UserStatus>('unregistered');
