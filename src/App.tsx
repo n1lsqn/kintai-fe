@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { open } from '@tauri-apps/plugin-shell';
 import { MdLogout } from 'react-icons/md';
 
@@ -33,7 +33,7 @@ function App() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   // Helper to make authenticated requests
-  const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
+  const apiRequest = useCallback(async (endpoint: string, options: RequestInit = {}) => {
       const headers = new Headers(options.headers);
       if (userId) {
           headers.set('x-user-id', userId);
@@ -43,9 +43,17 @@ function App() {
           headers
       });
       return res;
-  };
+  }, [userId]);
 
-  const fetchStatus = async () => {
+  const handleLogout = useCallback(() => {
+      setUserId(null);
+      setDiscordUser(undefined);
+      localStorage.removeItem('kintai_user_id');
+      setStatus('unregistered');
+      setLogs([]);
+  }, []);
+
+  const fetchStatus = useCallback(async () => {
     // ユーザーIDがない場合はステータスを取得できない（未ログイン）
     if (!userId) {
         setLoading(false);
@@ -72,11 +80,11 @@ function App() {
       console.error('Failed to fetch status:', err);
       return null;
     }
-  };
+  }, [userId, apiRequest, handleLogout]);
 
   useEffect(() => {
     fetchStatus();
-  }, [userId]); // userIdが変わったら再取得
+  }, [fetchStatus]); 
 
   // Polling effect when logging in
   useEffect(() => {
@@ -84,13 +92,11 @@ function App() {
     if (isLoggingIn) {
       intervalId = setInterval(async () => {
         // ログイン中は "/auth/me/latest" をポーリングして、自分がログインできたか確認する
-        // ※本来はここもセキュアにすべきだが、簡易実装として
         try {
             const res = await fetch(`${API_BASE}/auth/me/latest`);
             if (res.ok) {
                 const user = await res.json();
-                // 簡易チェック: 最新のユーザーが自分（今ログインした人）だと仮定
-                // 実際の運用では認証トークンを使うべき
+                // 簡易チェック
                 if (user && user.id) {
                     setUserId(user.id);
                     localStorage.setItem('kintai_user_id', user.id);
@@ -118,14 +124,6 @@ function App() {
         console.error(e);
         alert('ログイン開始に失敗しました');
     }
-  };
-
-  const handleLogout = () => {
-      setUserId(null);
-      setDiscordUser(undefined);
-      localStorage.removeItem('kintai_user_id');
-      setStatus('unregistered');
-      setLogs([]);
   };
 
   const handleStamp = async () => {

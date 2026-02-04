@@ -1,0 +1,64 @@
+name: Frontend CI
+
+on:
+  push:
+    paths:
+      - 'fe/**'
+  pull_request:
+    paths:
+      - 'fe/**'
+
+jobs:
+  build-and-lint:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./fe
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: fe/package-lock.json
+
+      - name: Install system dependencies for Tauri (Linux)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libssl-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type Check
+        # tsc -b は依存関係もチェックするため確実
+        run: npx tsc -b
+
+      - name: Build Vite App
+        run: npm run build
+
+      - name: Build Tauri App (Check only)
+        # 実際にバンドルまではせず、cargo check程度にするか、ビルドまで通すか。
+        # ここではビルドが通ることを確認する（配布物は作成しない）
+        run: npm run tauri build
+        env:
+            # CI上では署名などをスキップする必要があるかもしれないが、デフォルトで動くか試行
+            # 識別子がデフォルトのままだとエラーになる可能性があるので注意（今回は修正済み）
+            NO_STRIP: true
