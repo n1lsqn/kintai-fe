@@ -3,17 +3,17 @@ name: Frontend CI
 on:
   push:
     paths:
-      - 'fe/**'
+      - '**'
   pull_request:
     paths:
-      - 'fe/**'
+      - '**'
 
 jobs:
   build-and-lint:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./fe
+        working-directory: ./
 
     steps:
       - uses: actions/checkout@v4
@@ -23,7 +23,7 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
-          cache-dependency-path: fe/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install system dependencies for Tauri (Linux)
         run: |
