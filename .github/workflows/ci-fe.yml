@@ -53,6 +53,8 @@ jobs:
 
       - name: Build Vite App
         run: npm run build
+        env:
+          VITE_API_BASE: ${{ secrets.VITE_API_BASE }}
 
       - name: Build Tauri App (Check only)
         # 実際にバンドルまではせず、cargo check程度にするか、ビルドまで通すか。

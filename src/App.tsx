@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { open } from '@tauri-apps/plugin-shell';
 import { MdLogout } from 'react-icons/md';
 import WorkSummary from './WorkSummary';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 
 type UserStatus = 'unregistered' | 'working' | 'on_break';
 type AttendanceRecordType = 'work_start' | 'work_end' | 'break_start' | 'break_end';
@@ -93,6 +94,25 @@ function App() {
   const [loginState, setLoginState] = useState<string | null>(null);
   const [todayWorkTime, setTodayWorkTime] = useState(0);
   const [summaryRefreshCounter, setSummaryRefreshCounter] = useState(0);
+  const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(false);
+
+  const windowRef = useRef<ReturnType<typeof getCurrentWindow> | null>(null);
+
+  if (!windowRef.current) {
+    windowRef.current = getCurrentWindow();
+  }
+  const window = windowRef.current;
+
+  // Function to toggle always on top
+  const toggleAlwaysOnTop = async () => {
+    try {
+      const next = !isAlwaysOnTop;
+      await window.setAlwaysOnTop(next);
+      setIsAlwaysOnTop(next);
+    } catch (e) {
+      console.error('Failed to toggle always on top:', e);
+    }
+  };
 
   // ... (rest of the code)
 
@@ -306,12 +326,19 @@ function App() {
           <div className="text-6xl font-mono font-bold text-indigo-400 tabular-nums my-4 drop-shadow-lg">
             {formatDuration(todayWorkTime)}
           </div>
-          <div className="inline-block px-4 py-2 rounded-full bg-gray-800 border border-gray-700">
-            ステータス: <span className={`font-bold ${status === 'working' ? 'text-green-400' : status === 'on_break' ? 'text-yellow-400' : 'text-gray-400'}`}>
-              {getStatusLabel(status)}
-            </span>
+          <div className="flex items-center gap-2"> {/* Added flex container for status and button */}
+            <div className="inline-block px-4 py-2 rounded-full bg-gray-800 border border-gray-700">
+              ステータス: <span className={`font-bold ${status === 'working' ? 'text-green-400' : status === 'on_break' ? 'text-yellow-400' : 'text-gray-400'}`}>
+                {getStatusLabel(status)}
+              </span>
+            </div>
+            <div className="inline-block px-4 py-2 rounded-full bg-gray-800 border border-gray-700" onClick={toggleAlwaysOnTop}>
+              最前面: <span className={`font-bold ${isAlwaysOnTop === true ? 'text-green-400' : 'text-gray-400'}`}>
+                {isAlwaysOnTop ? 'ON' : 'OFF'}
+              </span>
+            </div>
           </div>
-        </div>
+        </div>      
       </header>
 
       <main>
