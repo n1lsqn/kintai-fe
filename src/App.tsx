@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { open } from '@tauri-apps/plugin-shell';
 import { MdLogout } from 'react-icons/md';
+import WorkSummary from './WorkSummary';
 
 type UserStatus = 'unregistered' | 'working' | 'on_break';
 type AttendanceRecordType = 'work_start' | 'work_end' | 'break_start' | 'break_end';
@@ -22,7 +23,7 @@ interface StatusResponse {
   discordUser?: DiscordUser;
 }
 
-const API_BASE = "https://api.n1l.dev";
+const API_BASE = import.meta.env.VITE_API_BASE;
 const RESET_HOUR = 5;
 
 // Helper to calculate work time
@@ -91,6 +92,7 @@ function App() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [loginState, setLoginState] = useState<string | null>(null);
   const [todayWorkTime, setTodayWorkTime] = useState(0);
+  const [summaryRefreshCounter, setSummaryRefreshCounter] = useState(0);
 
   // ... (rest of the code)
 
@@ -207,6 +209,7 @@ function App() {
       const res = await apiRequest('/stamp', { method: 'POST' });
       if (res.ok) {
         fetchStatus();
+        setSummaryRefreshCounter(prev => prev + 1); // Increment counter on successful stamp
       }
     } catch (err) {
       console.error('Stamp failed:', err);
@@ -218,6 +221,7 @@ function App() {
       const res = await apiRequest('/clock_out', { method: 'POST' });
       if (res.ok) {
         fetchStatus();
+        setSummaryRefreshCounter(prev => prev + 1); // Increment counter on successful clock out
       } else {
         const data = await res.json();
         alert(data.message);
@@ -311,7 +315,7 @@ function App() {
       </header>
 
       <main>
-        <div className="grid grid-cols-2 gap-4 mb-12">
+        <div className="grid grid-cols-2 gap-4 my-8">
           <button
             onClick={handleStamp}
             className="h-24 text-xl font-bold rounded-xl bg-indigo-600 hover:bg-indigo-500 transition-colors shadow-lg active:scale-95"
@@ -326,6 +330,8 @@ function App() {
             🛑 おわる
           </button>
         </div>
+
+        <WorkSummary userId={userId} apiRequest={apiRequest} refreshTrigger={summaryRefreshCounter} />
 
         <section className="bg-gray-800 rounded-xl overflow-hidden shadow-xl">
           <div className="px-6 py-4 border-b border-gray-700 font-bold bg-gray-750">
