@@ -309,11 +309,11 @@ function App() {
       <header className="mb-10 text-center relative">
         <div className="absolute top-0 left-0 flex items-center gap-2">
             {discordUser.avatar && (
-                <img 
-                    src={`https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`} 
-                    alt="avatar" 
-                    className="w-8 h-8 rounded-full border border-gray-600"
-                />
+              <img 
+                src={`https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`} 
+                alt="avatar" 
+                className="w-8 h-8 rounded-full border border-gray-600"
+              />
             )}
         </div>
         <div className="absolute top-0 right-0">
@@ -327,7 +327,7 @@ function App() {
             {formatDuration(todayWorkTime)}
           </div>
           <div className="flex items-center gap-2"> {/* Added flex container for status and button */}
-            <div className="inline-block px-4 py-2 rounded-full bg-gray-800 border border-gray-700">
+            <div className="inline-block px-4 py-2 rounded-full bg-gray-800 border border-gray-700" onClick={handleStamp}>
               ステータス: <span className={`font-bold ${status === 'working' ? 'text-green-400' : status === 'on_break' ? 'text-yellow-400' : 'text-gray-400'}`}>
                 {getStatusLabel(status)}
               </span>

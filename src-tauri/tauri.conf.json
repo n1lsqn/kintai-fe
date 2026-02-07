@@ -14,7 +14,7 @@
       {
         "title": "kintai",
         "width": 400,
-        "height": 600,
+        "height": 250,
         "resizable": true,
         "fullscreen": false
       }
